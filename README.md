@@ -1,6 +1,6 @@
 
 # MPU9250 Driver for ROS2
-This repository contains a ROS2 package that interfaces with an MPU9250 sensor over I2C. The sensor is calibrated on node startup (sensor needs to be on a plane with z-axis up and should not be moved during calibration). Calibration can be turned off in the parameters file. The output is an IMU ROS message but the quaternion part is currently set to zero.
+This repository contains a ROS2 package that interfaces with an MPU9250 sensor over I2C. The accelerometer and gyroscope are calibrated on node startup (sensor needs to be on a plane with z-axis up and should not be moved during calibration). Calibration can be turned off in the parameters file. The orientation is calculated from accelerometer and magnetometer measurements and is currently unfiltered.
 
 ## Dependencies
 -  libi2c-dev
