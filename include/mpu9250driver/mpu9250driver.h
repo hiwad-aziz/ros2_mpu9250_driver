@@ -15,6 +15,7 @@ class MPU9250Driver : public rclcpp::Node {
   void handleInput();
   size_t count_;
   rclcpp::TimerBase::SharedPtr timer_;
+  void calculateOrientation(sensor_msgs::msg::Imu& imu_message);
 };
 
 #endif  // MPU9250DRIVER_H

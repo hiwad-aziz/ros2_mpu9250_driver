@@ -206,7 +206,12 @@ double MPU9250Sensor::convertRawGyroscopeData(int16_t gyro_raw) const
   return ang_vel_in_deg_per_s;
 }
 
-double MPU9250Sensor::convertRawMagnetometerData(int16_t flux_raw) const {}
+double MPU9250Sensor::convertRawMagnetometerData(int16_t flux_raw) const
+{
+  const double magn_flux_in_mu_tesla =
+      static_cast<double>(flux_raw) * MAX_CONV_MAGN_FLUX / MAX_RAW_MAGN_FLUX;
+  return magn_flux_in_mu_tesla;
+}
 
 double MPU9250Sensor::convertRawAccelerometerData(int16_t accel_raw) const
 {

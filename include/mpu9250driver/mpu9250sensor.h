@@ -79,6 +79,8 @@ class MPU9250Sensor {
   // Helper constants
   static constexpr int GYRO_CONFIG_SHIFT = 3;
   static constexpr int ACCEL_CONFIG_SHIFT = 3;
+  static constexpr int MAX_RAW_MAGN_FLUX = 32760;
+  static constexpr int MAX_CONV_MAGN_FLUX = 4912;
   static constexpr double GRAVITY = 9.81;
   const std::array<int, 4> ACCEL_RANGES{2, 4, 8, 16};
   const std::array<int, 4> GYRO_RANGES{250, 500, 1000, 2000};
@@ -86,7 +88,7 @@ class MPU9250Sensor {
   const std::unordered_map<int, int> ACCEL_SENS_MAP{{2, 16384}, {4, 8192}, {8, 4096}, {16, 2048}};
   const std::unordered_map<int, double> GYRO_SENS_MAP{
       {250, 131}, {500, 65.5}, {1000, 32.8}, {2000, 16.4}};
-  static constexpr int CALIBRATION_COUNT{200};
+  static constexpr int CALIBRATION_COUNT{1000};
 };
 
 #endif  // MPU9250SENSOR_H

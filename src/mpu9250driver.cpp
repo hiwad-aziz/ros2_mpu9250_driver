@@ -1,7 +1,7 @@
+#include "mpu9250driver/mpu9250driver.h"
+
 #include <chrono>
 #include <memory>
-
-#include "mpu9250driver/mpu9250driver.h"
 
 using namespace std::chrono_literals;
 
@@ -52,17 +52,40 @@ void MPU9250Driver::handleInput()
   auto message = sensor_msgs::msg::Imu();
   message.header.stamp = this->get_clock()->now();
   message.header.frame_id = "base_link";
+  // Direct measurements
   message.linear_acceleration.x = mpu9250_->getAccelerationX();
   message.linear_acceleration.y = mpu9250_->getAccelerationY();
   message.linear_acceleration.z = mpu9250_->getAccelerationZ();
   message.angular_velocity.x = mpu9250_->getAngularVelocityX();
   message.angular_velocity.y = mpu9250_->getAngularVelocityY();
   message.angular_velocity.z = mpu9250_->getAngularVelocityZ();
-  message.orientation.x = 0;
-  message.orientation.y = 0;
-  message.orientation.z = 0;
-  message.orientation.w = 0;
+  // Calculate euler angles, convert to quaternion and store in message
+  calculateOrientation(message);
   publisher_->publish(message);
+}
+
+void MPU9250Driver::calculateOrientation(sensor_msgs::msg::Imu& imu_message)
+{
+  // Calculate Euler angles
+  double roll, pitch, yaw;
+  roll = atan2(imu_message.linear_acceleration.y, imu_message.linear_acceleration.z);
+  pitch = atan2(-imu_message.linear_acceleration.y,
+                (sqrt(imu_message.linear_acceleration.y * imu_message.linear_acceleration.y +
+                      imu_message.linear_acceleration.z * imu_message.linear_acceleration.z)));
+  yaw = atan2(mpu9250_->getMagneticFluxDensityY(), mpu9250_->getMagneticFluxDensityX());
+
+  // Convert to quaternion
+  double cy = cos(yaw * 0.5);
+  double sy = sin(yaw * 0.5);
+  double cp = cos(pitch * 0.5);
+  double sp = sin(pitch * 0.5);
+  double cr = cos(roll * 0.5);
+  double sr = sin(roll * 0.5);
+
+  imu_message.orientation.x = cy * cp * sr - sy * sp * cr;
+  imu_message.orientation.y = sy * cp * sr + cy * sp * cr;
+  imu_message.orientation.z = sy * cp * cr - cy * sp * sr;
+  imu_message.orientation.w = cy * cp * cr + sy * sp * sr;
 }
 
 int main(int argc, char* argv[])
