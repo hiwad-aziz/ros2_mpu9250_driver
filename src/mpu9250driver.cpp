@@ -9,17 +9,7 @@ MPU9250Driver::MPU9250Driver()
     : Node("mpu9250publisher"), mpu9250_{std::make_unique<MPU9250Sensor>()}
 {
   // Declare parameters
-  this->declare_parameter<bool>("calibrate", true);
-  this->declare_parameter<int>("gyro_range", MPU9250Sensor::GyroRange::GYR_250_DEG_S);
-  this->declare_parameter<int>("accel_range", MPU9250Sensor::AccelRange::ACC_2_G);
-  this->declare_parameter<int>("dlpf_bandwidth", MPU9250Sensor::DlpfBandwidth::DLPF_260_HZ);
-  this->declare_parameter<double>("gyro_x_offset", 0.0);
-  this->declare_parameter<double>("gyro_y_offset", 0.0);
-  this->declare_parameter<double>("gyro_z_offset", 0.0);
-  this->declare_parameter<double>("accel_x_offset", 0.0);
-  this->declare_parameter<double>("accel_y_offset", 0.0);
-  this->declare_parameter<double>("accel_z_offset", 0.0);
-  this->declare_parameter<int>("frequency", 0.0);
+  declareParameters();
   // Set parameters
   mpu9250_->setGyroscopeRange(
       static_cast<MPU9250Sensor::GyroRange>(this->get_parameter("gyro_range").as_int()));
@@ -62,6 +52,21 @@ void MPU9250Driver::handleInput()
   // Calculate euler angles, convert to quaternion and store in message
   calculateOrientation(message);
   publisher_->publish(message);
+}
+
+void MPU9250Driver::declareParameters()
+{
+  this->declare_parameter<bool>("calibrate", true);
+  this->declare_parameter<int>("gyro_range", MPU9250Sensor::GyroRange::GYR_250_DEG_S);
+  this->declare_parameter<int>("accel_range", MPU9250Sensor::AccelRange::ACC_2_G);
+  this->declare_parameter<int>("dlpf_bandwidth", MPU9250Sensor::DlpfBandwidth::DLPF_260_HZ);
+  this->declare_parameter<double>("gyro_x_offset", 0.0);
+  this->declare_parameter<double>("gyro_y_offset", 0.0);
+  this->declare_parameter<double>("gyro_z_offset", 0.0);
+  this->declare_parameter<double>("accel_x_offset", 0.0);
+  this->declare_parameter<double>("accel_y_offset", 0.0);
+  this->declare_parameter<double>("accel_z_offset", 0.0);
+  this->declare_parameter<int>("frequency", 0.0);
 }
 
 void MPU9250Driver::calculateOrientation(sensor_msgs::msg::Imu& imu_message)
