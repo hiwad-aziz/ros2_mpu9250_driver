@@ -25,7 +25,7 @@ MPU9250Driver::MPU9250Driver()
                                    this->get_parameter("accel_z_offset").as_double());
   // Check if we want to calibrate the sensor
   if (this->get_parameter("calibrate").as_bool()) {
-    std::cout << "Calibrating...\n";
+    RCLCPP_INFO(this->get_logger(), "Calibrating...");
     mpu9250_->calibrate();
   }
   mpu9250_->printConfig();
