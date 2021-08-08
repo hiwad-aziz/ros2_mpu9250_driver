@@ -11,11 +11,13 @@ extern "C" {
 }
 
 #include <iostream>
+#include <thread>
 
 MPU9250Sensor::MPU9250Sensor(int bus_number)
 {
   // TODO: make char append cleaner
-  filename_[9] = *std::to_string(bus_number).c_str();
+  bus_number_ = bus_number;
+  filename_[9] = *std::to_string(bus_number_).c_str();
   std::cout << filename_ << std::endl;
   file_ = open(filename_, O_RDWR);
   if (file_ < 0) {
@@ -23,13 +25,14 @@ MPU9250Sensor::MPU9250Sensor(int bus_number)
               << strerror(errno);
     exit(1);
   }
-  if (ioctl(file_, I2C_SLAVE, MPU9250_ADDRESS_DEFAULT) < 0) {
-    std::cerr << "Failed to find device address! Check device address!";
-    exit(1);
-  }
+  initImuI2c();
   // Wake up sensor
   int result = i2c_smbus_write_byte_data(file_, PWR_MGMT_1, 0);
   if (result < 0) reportError(errno);
+  // Enable bypass mode for magnetometer
+  enableBypassMode();
+  // Set magnetometer to 100 Hz continuous measurement mode
+  setContinuousMeasurementMode100Hz();
   // Read current ranges from sensor
   readGyroscopeRange();
   readAccelerometerRange();
@@ -37,6 +40,22 @@ MPU9250Sensor::MPU9250Sensor(int bus_number)
 }
 
 MPU9250Sensor::~MPU9250Sensor() { close(file_); }
+
+void MPU9250Sensor::initImuI2c() const
+{
+  if (ioctl(file_, I2C_SLAVE, MPU9250_ADDRESS_DEFAULT) < 0) {
+    std::cerr << "Failed to find device address! Check device address!";
+    exit(1);
+  }
+}
+
+void MPU9250Sensor::initMagnI2c() const
+{
+  if (ioctl(file_, I2C_SLAVE, AK8963_ADDRESS_DEFAULT) < 0) {
+    std::cerr << "Failed to find device address! Check device address!";
+    exit(1);
+  }
+}
 
 void MPU9250Sensor::printConfig() const
 {
@@ -51,6 +70,31 @@ void MPU9250Sensor::printOffsets() const
             << ", z: " << accel_z_offset_ << "\n";
   std::cout << "Gyroscope Offsets: x: " << gyro_x_offset_ << ", y: " << gyro_y_offset_
             << ", z: " << gyro_z_offset_ << "\n";
+}
+
+void MPU9250Sensor::setContinuousMeasurementMode100Hz()
+{
+  initMagnI2c();
+  // Set to power-down mode first before switching to another mode
+  int result = i2c_smbus_write_byte_data(file_, MAGN_MEAS_MODE, 0x00);
+  if (result < 0) reportError(errno);
+  // Wait until mode changes
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  // Switch to 100 Hz mode
+  result = i2c_smbus_write_byte_data(file_, MAGN_MEAS_MODE, 0x16);
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  if (result < 0) reportError(errno);
+  initImuI2c();
+}
+
+void MPU9250Sensor::enableBypassMode()
+{
+  // Disable I2C master interface
+  int result = i2c_smbus_write_byte_data(file_, MPU9250_USER_CTRL, 0x00);
+  if (result < 0) reportError(errno);
+  // Enable bypass mode
+  result = i2c_smbus_write_byte_data(file_, MPU9250_BYPASS_ADDR, 0x02);
+  if (result < 0) reportError(errno);
 }
 
 int MPU9250Sensor::readGyroscopeRange()
@@ -175,28 +219,35 @@ double MPU9250Sensor::getAngularVelocityZ() const
 
 double MPU9250Sensor::getMagneticFluxDensityX() const
 {
+  // TODO: check for overflow of magnetic sensor
+  initMagnI2c();
   int16_t magn_flux_x_msb = i2c_smbus_read_byte_data(file_, MAGN_XOUT_L + 1);
   int16_t magn_flux_x_lsb = i2c_smbus_read_byte_data(file_, MAGN_XOUT_L);
   int16_t magn_flux_x = magn_flux_x_lsb | magn_flux_x_msb << 8;
   double magn_flux_x_converted = convertRawMagnetometerData(magn_flux_x);
+  initImuI2c();
   return magn_flux_x_converted;
 }
 
 double MPU9250Sensor::getMagneticFluxDensityY() const
 {
+  initMagnI2c();
   int16_t magn_flux_y_msb = i2c_smbus_read_byte_data(file_, MAGN_YOUT_L + 1);
   int16_t magn_flux_y_lsb = i2c_smbus_read_byte_data(file_, MAGN_YOUT_L);
   int16_t magn_flux_y = magn_flux_y_lsb | magn_flux_y_msb << 8;
   double magn_flux_y_converted = convertRawMagnetometerData(magn_flux_y);
+  initImuI2c();
   return magn_flux_y_converted;
 }
 
 double MPU9250Sensor::getMagneticFluxDensityZ() const
 {
+  initMagnI2c();
   int16_t magn_flux_z_msb = i2c_smbus_read_byte_data(file_, MAGN_ZOUT_L + 1);
   int16_t magn_flux_z_lsb = i2c_smbus_read_byte_data(file_, MAGN_ZOUT_L);
   int16_t magn_flux_z = magn_flux_z_lsb | magn_flux_z_msb << 8;
   double magn_flux_z_converted = convertRawMagnetometerData(magn_flux_z);
+  initImuI2c();
   return magn_flux_z_converted;
 }
 

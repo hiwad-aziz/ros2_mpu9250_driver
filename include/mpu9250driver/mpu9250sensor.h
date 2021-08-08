@@ -40,9 +40,13 @@ class MPU9250Sensor {
   void calibrate();
 
  private:
+  void initImuI2c() const;
+  void initMagnI2c() const;
   double convertRawGyroscopeData(int16_t gyro_raw) const;
   double convertRawAccelerometerData(int16_t accel_raw) const;
   double convertRawMagnetometerData(int16_t flux_raw) const;
+  void setContinuousMeasurementMode100Hz();
+  void enableBypassMode();
   int readGyroscopeRange();
   int readAccelerometerRange();
   int readDlpfConfig();
@@ -50,6 +54,7 @@ class MPU9250Sensor {
 
   int file_;
   char filename_[10] = "/dev/i2c-";
+  int bus_number_;
   int accel_range_{2};
   int gyro_range_{250};
   int dlpf_range_{260};
@@ -63,6 +68,9 @@ class MPU9250Sensor {
 
   // MPU9250 registers and addresses (s. datasheet for details)
   static constexpr int MPU9250_ADDRESS_DEFAULT = 0x68;
+  static constexpr int AK8963_ADDRESS_DEFAULT = 0x0C;
+  static constexpr int MPU9250_USER_CTRL = 0x6A;
+  static constexpr int MPU9250_BYPASS_ADDR = 0x37;
   static constexpr int PWR_MGMT_1 = 0x6B;
   static constexpr int GYRO_CONFIG = 0x1B;
   static constexpr int ACCEL_CONFIG = 0x1C;
@@ -72,9 +80,11 @@ class MPU9250Sensor {
   static constexpr int GYRO_XOUT_H = 0x43;
   static constexpr int GYRO_YOUT_H = 0x45;
   static constexpr int GYRO_ZOUT_H = 0x47;
+  static constexpr int MAGN_ADDR = 0x0C;
   static constexpr int MAGN_XOUT_L = 0x03;
   static constexpr int MAGN_YOUT_L = 0x05;
   static constexpr int MAGN_ZOUT_L = 0x07;
+  static constexpr int MAGN_MEAS_MODE = 0x0A;
   static constexpr int DLPF_CONFIG = 0x1A;
   // Helper constants
   static constexpr int GYRO_CONFIG_SHIFT = 3;
