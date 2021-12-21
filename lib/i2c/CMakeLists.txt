@@ -5,4 +5,4 @@ target_include_directories(i2c_comm_interface INTERFACE include/i2c_comm_interfa
 # Linux I2C communicator
 add_library(linux_i2c_communicator src/LinuxI2cCommunicator.cpp)
 target_include_directories(linux_i2c_communicator PUBLIC include/linux_i2c_communicator)
-target_link_libraries(linux_i2c_communicator PUBLIC i2c_comm_interface i2c)
+target_link_libraries(linux_i2c_communicator PUBLIC i2c_comm_interface PRIVATE i2c)
