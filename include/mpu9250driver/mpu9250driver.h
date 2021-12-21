@@ -1,7 +1,7 @@
 #ifndef MPU9250DRIVER_H
 #define MPU9250DRIVER_H
 
-#include "mpu9250driver/mpu9250sensor.h"
+#include "mpu9250sensor.h"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/imu.hpp"
 

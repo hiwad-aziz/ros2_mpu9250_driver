@@ -3,11 +3,15 @@
 #include <chrono>
 #include <memory>
 
+#include "LinuxI2cCommunicator.h"
+
 using namespace std::chrono_literals;
 
-MPU9250Driver::MPU9250Driver()
-    : Node("mpu9250publisher"), mpu9250_{std::make_unique<MPU9250Sensor>()}
+MPU9250Driver::MPU9250Driver() : Node("mpu9250publisher")
 {
+  // Create concrete I2C communicator and pass to sensor
+  std::unique_ptr<I2cCommunicator> i2cBus = std::make_unique<LinuxI2cCommunicator>();
+  mpu9250_ = std::make_unique<MPU9250Sensor>(std::move(i2cBus));
   // Declare parameters
   declareParameters();
   // Set parameters

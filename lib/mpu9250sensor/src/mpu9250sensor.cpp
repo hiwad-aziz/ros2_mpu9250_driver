@@ -1,34 +1,18 @@
-#include "mpu9250driver/mpu9250sensor.h"
+#include "mpu9250sensor.h"
 
 extern "C" {
-#include <errno.h>
-#include <fcntl.h>
-#include <i2c/smbus.h>
 #include <linux/i2c-dev.h>
-#include <string.h>
 #include <sys/ioctl.h>
-#include <unistd.h>
 }
 
 #include <iostream>
 #include <thread>
 
-MPU9250Sensor::MPU9250Sensor(int bus_number)
+MPU9250Sensor::MPU9250Sensor(std::unique_ptr<I2cCommunicator> i2cBus) : i2cBus_(std::move(i2cBus))
 {
-  // TODO: make char append cleaner
-  bus_number_ = bus_number;
-  filename_[9] = *std::to_string(bus_number_).c_str();
-  std::cout << filename_ << std::endl;
-  file_ = open(filename_, O_RDWR);
-  if (file_ < 0) {
-    std::cerr << "Failed to open file descriptor! Check your bus number! Errno: "
-              << strerror(errno);
-    exit(1);
-  }
   initImuI2c();
   // Wake up sensor
-  int result = i2c_smbus_write_byte_data(file_, PWR_MGMT_1, 0);
-  if (result < 0) reportError(errno);
+  int result = i2cBus_->write(PWR_MGMT_1, 0);
   // Enable bypass mode for magnetometer
   enableBypassMode();
   // Set magnetometer to 100 Hz continuous measurement mode
@@ -39,11 +23,9 @@ MPU9250Sensor::MPU9250Sensor(int bus_number)
   readDlpfConfig();
 }
 
-MPU9250Sensor::~MPU9250Sensor() { close(file_); }
-
 void MPU9250Sensor::initImuI2c() const
 {
-  if (ioctl(file_, I2C_SLAVE, MPU9250_ADDRESS_DEFAULT) < 0) {
+  if (ioctl(i2cBus_->getFile(), I2C_SLAVE, MPU9250_ADDRESS_DEFAULT) < 0) {
     std::cerr << "Failed to find device address! Check device address!";
     exit(1);
   }
@@ -51,7 +33,7 @@ void MPU9250Sensor::initImuI2c() const
 
 void MPU9250Sensor::initMagnI2c() const
 {
-  if (ioctl(file_, I2C_SLAVE, AK8963_ADDRESS_DEFAULT) < 0) {
+  if (ioctl(i2cBus_->getFile(), I2C_SLAVE, AK8963_ADDRESS_DEFAULT) < 0) {
     std::cerr << "Failed to find device address! Check device address!";
     exit(1);
   }
@@ -76,31 +58,26 @@ void MPU9250Sensor::setContinuousMeasurementMode100Hz()
 {
   initMagnI2c();
   // Set to power-down mode first before switching to another mode
-  int result = i2c_smbus_write_byte_data(file_, MAGN_MEAS_MODE, 0x00);
-  if (result < 0) reportError(errno);
+  int result = i2cBus_->write(MAGN_MEAS_MODE, 0x00);
   // Wait until mode changes
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
   // Switch to 100 Hz mode
-  result = i2c_smbus_write_byte_data(file_, MAGN_MEAS_MODE, 0x16);
+  result = i2cBus_->write(MAGN_MEAS_MODE, 0x16);
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  if (result < 0) reportError(errno);
   initImuI2c();
 }
 
 void MPU9250Sensor::enableBypassMode()
 {
   // Disable I2C master interface
-  int result = i2c_smbus_write_byte_data(file_, MPU9250_USER_CTRL, 0x00);
-  if (result < 0) reportError(errno);
+  int result = i2cBus_->write(MPU9250_USER_CTRL, 0x00);
   // Enable bypass mode
-  result = i2c_smbus_write_byte_data(file_, MPU9250_BYPASS_ADDR, 0x02);
-  if (result < 0) reportError(errno);
+  result = i2cBus_->write(MPU9250_BYPASS_ADDR, 0x02);
 }
 
 int MPU9250Sensor::readGyroscopeRange()
 {
-  int range = i2c_smbus_read_byte_data(file_, GYRO_CONFIG);
-  if (range < 0) reportError(errno);
+  int range = i2cBus_->read(GYRO_CONFIG);
   range = range >> GYRO_CONFIG_SHIFT;
   gyro_range_ = GYRO_RANGES[range];
   return gyro_range_;
@@ -108,8 +85,7 @@ int MPU9250Sensor::readGyroscopeRange()
 
 int MPU9250Sensor::readAccelerometerRange()
 {
-  int range = i2c_smbus_read_byte_data(file_, ACCEL_CONFIG);
-  if (range < 0) reportError(errno);
+  int range = i2cBus_->read(ACCEL_CONFIG);
   range = range >> ACCEL_CONFIG_SHIFT;
   accel_range_ = ACCEL_RANGES[range];
   return accel_range_;
@@ -117,8 +93,7 @@ int MPU9250Sensor::readAccelerometerRange()
 
 int MPU9250Sensor::readDlpfConfig()
 {
-  int range = i2c_smbus_read_byte_data(file_, DLPF_CONFIG);
-  if (range < 0) reportError(errno);
+  int range = i2cBus_->read(DLPF_CONFIG);
   range = range & 7;  // Read only first 3 bits
   dlpf_range_ = DLPF_RANGES[range];
   return dlpf_range_;
@@ -126,29 +101,26 @@ int MPU9250Sensor::readDlpfConfig()
 
 void MPU9250Sensor::setGyroscopeRange(MPU9250Sensor::GyroRange range)
 {
-  int result = i2c_smbus_write_byte_data(file_, GYRO_CONFIG, range << GYRO_CONFIG_SHIFT);
-  if (result < 0) reportError(errno);
+  int result = i2cBus_->write(GYRO_CONFIG, range << GYRO_CONFIG_SHIFT);
   gyro_range_ = GYRO_RANGES[static_cast<size_t>(range)];
 }
 
 void MPU9250Sensor::setAccelerometerRange(MPU9250Sensor::AccelRange range)
 {
-  int result = i2c_smbus_write_byte_data(file_, ACCEL_CONFIG, range << ACCEL_CONFIG_SHIFT);
-  if (result < 0) reportError(errno);
+  int result = i2cBus_->write(ACCEL_CONFIG, range << ACCEL_CONFIG_SHIFT);
   accel_range_ = ACCEL_RANGES[static_cast<size_t>(range)];
 }
 
 void MPU9250Sensor::setDlpfBandwidth(DlpfBandwidth bandwidth)
 {
-  int result = i2c_smbus_write_byte_data(file_, DLPF_CONFIG, bandwidth);
-  if (result < 0) reportError(errno);
+  int result = i2cBus_->write(DLPF_CONFIG, bandwidth);
   dlpf_range_ = DLPF_RANGES[static_cast<size_t>(bandwidth)];
 }
 
 double MPU9250Sensor::getAccelerationX() const
 {
-  int16_t accel_x_msb = i2c_smbus_read_byte_data(file_, ACCEL_XOUT_H);
-  int16_t accel_x_lsb = i2c_smbus_read_byte_data(file_, ACCEL_XOUT_H + 1);
+  int16_t accel_x_msb = i2cBus_->read(ACCEL_XOUT_H);
+  int16_t accel_x_lsb = i2cBus_->read(ACCEL_XOUT_H + 1);
   int16_t accel_x = accel_x_lsb | accel_x_msb << 8;
   double accel_x_converted = convertRawAccelerometerData(accel_x);
   if (calibrated_) {
@@ -159,8 +131,8 @@ double MPU9250Sensor::getAccelerationX() const
 
 double MPU9250Sensor::getAccelerationY() const
 {
-  int16_t accel_y_msb = i2c_smbus_read_byte_data(file_, ACCEL_YOUT_H);
-  int16_t accel_y_lsb = i2c_smbus_read_byte_data(file_, ACCEL_YOUT_H + 1);
+  int16_t accel_y_msb = i2cBus_->read(ACCEL_YOUT_H);
+  int16_t accel_y_lsb = i2cBus_->read(ACCEL_YOUT_H + 1);
   int16_t accel_y = accel_y_lsb | accel_y_msb << 8;
   double accel_y_converted = convertRawAccelerometerData(accel_y);
   if (calibrated_) {
@@ -171,8 +143,8 @@ double MPU9250Sensor::getAccelerationY() const
 
 double MPU9250Sensor::getAccelerationZ() const
 {
-  int16_t accel_z_msb = i2c_smbus_read_byte_data(file_, ACCEL_ZOUT_H);
-  int16_t accel_z_lsb = i2c_smbus_read_byte_data(file_, ACCEL_ZOUT_H + 1);
+  int16_t accel_z_msb = i2cBus_->read(ACCEL_ZOUT_H);
+  int16_t accel_z_lsb = i2cBus_->read(ACCEL_ZOUT_H + 1);
   int16_t accel_z = accel_z_lsb | accel_z_msb << 8;
   double accel_z_converted = convertRawAccelerometerData(accel_z);
   if (calibrated_) {
@@ -183,8 +155,8 @@ double MPU9250Sensor::getAccelerationZ() const
 
 double MPU9250Sensor::getAngularVelocityX() const
 {
-  int16_t gyro_x_msb = i2c_smbus_read_byte_data(file_, GYRO_XOUT_H);
-  int16_t gyro_x_lsb = i2c_smbus_read_byte_data(file_, GYRO_XOUT_H + 1);
+  int16_t gyro_x_msb = i2cBus_->read(GYRO_XOUT_H);
+  int16_t gyro_x_lsb = i2cBus_->read(GYRO_XOUT_H + 1);
   int16_t gyro_x = gyro_x_lsb | gyro_x_msb << 8;
   double gyro_x_converted = convertRawGyroscopeData(gyro_x);
   if (calibrated_) {
@@ -195,8 +167,8 @@ double MPU9250Sensor::getAngularVelocityX() const
 
 double MPU9250Sensor::getAngularVelocityY() const
 {
-  int16_t gyro_y_msb = i2c_smbus_read_byte_data(file_, GYRO_YOUT_H);
-  int16_t gyro_y_lsb = i2c_smbus_read_byte_data(file_, GYRO_YOUT_H + 1);
+  int16_t gyro_y_msb = i2cBus_->read(GYRO_YOUT_H);
+  int16_t gyro_y_lsb = i2cBus_->read(GYRO_YOUT_H + 1);
   int16_t gyro_y = gyro_y_lsb | gyro_y_msb << 8;
   double gyro_y_converted = convertRawGyroscopeData(gyro_y);
   if (calibrated_) {
@@ -207,8 +179,8 @@ double MPU9250Sensor::getAngularVelocityY() const
 
 double MPU9250Sensor::getAngularVelocityZ() const
 {
-  int16_t gyro_z_msb = i2c_smbus_read_byte_data(file_, GYRO_ZOUT_H);
-  int16_t gyro_z_lsb = i2c_smbus_read_byte_data(file_, GYRO_ZOUT_H + 1);
+  int16_t gyro_z_msb = i2cBus_->read(GYRO_ZOUT_H);
+  int16_t gyro_z_lsb = i2cBus_->read(GYRO_ZOUT_H + 1);
   int16_t gyro_z = gyro_z_lsb | gyro_z_msb << 8;
   double gyro_z_converted = convertRawGyroscopeData(gyro_z);
   if (calibrated_) {
@@ -221,8 +193,8 @@ double MPU9250Sensor::getMagneticFluxDensityX() const
 {
   // TODO: check for overflow of magnetic sensor
   initMagnI2c();
-  int16_t magn_flux_x_msb = i2c_smbus_read_byte_data(file_, MAGN_XOUT_L + 1);
-  int16_t magn_flux_x_lsb = i2c_smbus_read_byte_data(file_, MAGN_XOUT_L);
+  int16_t magn_flux_x_msb = i2cBus_->read(MAGN_XOUT_L + 1);
+  int16_t magn_flux_x_lsb = i2cBus_->read(MAGN_XOUT_L);
   int16_t magn_flux_x = magn_flux_x_lsb | magn_flux_x_msb << 8;
   double magn_flux_x_converted = convertRawMagnetometerData(magn_flux_x);
   initImuI2c();
@@ -232,8 +204,8 @@ double MPU9250Sensor::getMagneticFluxDensityX() const
 double MPU9250Sensor::getMagneticFluxDensityY() const
 {
   initMagnI2c();
-  int16_t magn_flux_y_msb = i2c_smbus_read_byte_data(file_, MAGN_YOUT_L + 1);
-  int16_t magn_flux_y_lsb = i2c_smbus_read_byte_data(file_, MAGN_YOUT_L);
+  int16_t magn_flux_y_msb = i2cBus_->read(MAGN_YOUT_L + 1);
+  int16_t magn_flux_y_lsb = i2cBus_->read(MAGN_YOUT_L);
   int16_t magn_flux_y = magn_flux_y_lsb | magn_flux_y_msb << 8;
   double magn_flux_y_converted = convertRawMagnetometerData(magn_flux_y);
   initImuI2c();
@@ -243,8 +215,8 @@ double MPU9250Sensor::getMagneticFluxDensityY() const
 double MPU9250Sensor::getMagneticFluxDensityZ() const
 {
   initMagnI2c();
-  int16_t magn_flux_z_msb = i2c_smbus_read_byte_data(file_, MAGN_ZOUT_L + 1);
-  int16_t magn_flux_z_lsb = i2c_smbus_read_byte_data(file_, MAGN_ZOUT_L);
+  int16_t magn_flux_z_msb = i2cBus_->read(MAGN_ZOUT_L + 1);
+  int16_t magn_flux_z_lsb = i2cBus_->read(MAGN_ZOUT_L);
   int16_t magn_flux_z = magn_flux_z_lsb | magn_flux_z_msb << 8;
   double magn_flux_z_converted = convertRawMagnetometerData(magn_flux_z);
   initImuI2c();
@@ -308,5 +280,3 @@ void MPU9250Sensor::calibrate()
   accel_z_offset_ -= GRAVITY;
   calibrated_ = true;
 }
-
-void MPU9250Sensor::reportError(int error) { std::cerr << "Error! Errno: " << strerror(error); }

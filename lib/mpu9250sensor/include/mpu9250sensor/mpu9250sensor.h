@@ -1,13 +1,15 @@
 #ifndef MPU9250SENSOR_H
 #define MPU9250SENSOR_H
 
+#include <memory>
 #include <string>
 #include <unordered_map>
 
+#include "I2cCommunicator.h"
+
 class MPU9250Sensor {
  public:
-  MPU9250Sensor(int bus_number = 1);
-  ~MPU9250Sensor();
+  MPU9250Sensor(std::unique_ptr<I2cCommunicator> i2cBus);
 
   enum AccelRange { ACC_2_G, ACC_4_G, ACC_8_G, ACC_16_G };
   enum GyroRange { GYR_250_DEG_S, GYR_500_DEG_S, GYR_1000_DEG_S, GYR_2000_DEG_S };
@@ -50,11 +52,8 @@ class MPU9250Sensor {
   int readGyroscopeRange();
   int readAccelerometerRange();
   int readDlpfConfig();
-  void reportError(int error);
 
-  int file_;
-  char filename_[10] = "/dev/i2c-";
-  int bus_number_;
+  std::unique_ptr<I2cCommunicator> i2cBus_;
   int accel_range_{2};
   int gyro_range_{250};
   int dlpf_range_{260};

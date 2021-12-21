@@ -1,0 +1,8 @@
+# I2C interface
+add_library(i2c_comm_interface INTERFACE)
+target_include_directories(i2c_comm_interface INTERFACE include/i2c_comm_interface)
+
+# Linux I2C communicator
+add_library(linux_i2c_communicator src/LinuxI2cCommunicator.cpp)
+target_include_directories(linux_i2c_communicator PUBLIC include/linux_i2c_communicator)
+target_link_libraries(linux_i2c_communicator PUBLIC i2c_comm_interface i2c)
