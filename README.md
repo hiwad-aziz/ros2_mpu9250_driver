@@ -32,4 +32,7 @@ Source setup.bash in your workspace:
 Launch it:
 
     ros2 launch mpu9250driver mpu9250driver_launch.py
+    
+## Disclaimer
+The project is still in **work in progress** state. I will spend some time every now and then when I'm free.
 
