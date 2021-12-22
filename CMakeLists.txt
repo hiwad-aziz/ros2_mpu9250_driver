@@ -23,13 +23,13 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 
-add_executable(mpu9250driver src/mpu9250driver.cpp)
-ament_target_dependencies(mpu9250driver rclcpp sensor_msgs)
-target_link_libraries(mpu9250driver mpu9250sensor linux_i2c_communicator)
+add_executable(${PROJECT_NAME} src/mpu9250driver.cpp)
+ament_target_dependencies(${PROJECT_NAME} rclcpp sensor_msgs)
+target_link_libraries(${PROJECT_NAME} mpu9250sensor linux_i2c_communicator)
 target_include_directories(
-  mpu9250driver PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  ${PROJECT_NAME} PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
                        $<INSTALL_INTERFACE:include>)
 
-install(TARGETS mpu9250driver DESTINATION lib/${PROJECT_NAME})
+install(TARGETS ${PROJECT_NAME} DESTINATION lib/${PROJECT_NAME})
 install(DIRECTORY launch params DESTINATION share/${PROJECT_NAME}/)
 ament_package()
