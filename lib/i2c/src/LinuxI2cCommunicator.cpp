@@ -14,11 +14,9 @@ extern "C" {
 
 LinuxI2cCommunicator::LinuxI2cCommunicator(int bus_number)
 {
-  // TODO: make char append cleaner
-  char filename_[10] = "/dev/i2c-";
-  filename_[9] = *std::to_string(bus_number).c_str();
+  const std::string filename_ = "/dev/i2c-" + std::to_string(bus_number);
   std::cout << filename_ << std::endl;
-  file_ = open(filename_, O_RDWR);
+  file_ = open(filename_.c_str(), O_RDWR);
   if (file_ < 0) {
     std::cerr << "Failed to open file descriptor! Check your bus number! Errno: "
               << strerror(errno);
