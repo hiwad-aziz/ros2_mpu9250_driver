@@ -13,6 +13,10 @@ MPU9250Sensor::MPU9250Sensor(std::unique_ptr<I2cCommunicator> i2cBus) : i2cBus_(
   initImuI2c();
   // Wake up sensor
   int result = i2cBus_->write(PWR_MGMT_1, 0);
+  if (result < 0)
+  {
+    std::cerr << "Error waking sensor" << std::endl;
+  }
   // Enable bypass mode for magnetometer
   enableBypassMode();
   // Set magnetometer to 100 Hz continuous measurement mode
@@ -59,10 +63,18 @@ void MPU9250Sensor::setContinuousMeasurementMode100Hz()
   initMagnI2c();
   // Set to power-down mode first before switching to another mode
   int result = i2cBus_->write(MAGN_MEAS_MODE, 0x00);
+  if (result < 0)
+  {
+    std::cerr << "Error powering down magnometer" << std::endl;
+  }
   // Wait until mode changes
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
   // Switch to 100 Hz mode
   result = i2cBus_->write(MAGN_MEAS_MODE, 0x16);
+  if (result < 0)
+  {
+    std::cerr << "Error reactivating magnometer" << std::endl;
+  }
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
   initImuI2c();
 }
@@ -71,8 +83,17 @@ void MPU9250Sensor::enableBypassMode()
 {
   // Disable I2C master interface
   int result = i2cBus_->write(MPU9250_USER_CTRL, 0x00);
+  if (result < 0)
+  {
+    std::cerr << "Error disable i2c master interface" << std::endl;
+  }
+  
   // Enable bypass mode
   result = i2cBus_->write(MPU9250_BYPASS_ADDR, 0x02);
+  if (result < 0)
+  {
+    std::cerr << "Error enabling bypass" << std::endl;
+  }
 }
 
 int MPU9250Sensor::readGyroscopeRange()
@@ -102,18 +123,30 @@ int MPU9250Sensor::readDlpfConfig()
 void MPU9250Sensor::setGyroscopeRange(MPU9250Sensor::GyroRange range)
 {
   int result = i2cBus_->write(GYRO_CONFIG, range << GYRO_CONFIG_SHIFT);
+  if (result < 0)
+  {
+    std::cerr << "Error setting gyroscope range" << std::endl;
+  }
   gyro_range_ = GYRO_RANGES[static_cast<size_t>(range)];
 }
 
 void MPU9250Sensor::setAccelerometerRange(MPU9250Sensor::AccelRange range)
 {
   int result = i2cBus_->write(ACCEL_CONFIG, range << ACCEL_CONFIG_SHIFT);
+  if (result < 0)
+  {
+    std::cerr << "Error setting acc. range" << std::endl;
+  }
   accel_range_ = ACCEL_RANGES[static_cast<size_t>(range)];
 }
 
 void MPU9250Sensor::setDlpfBandwidth(DlpfBandwidth bandwidth)
 {
   int result = i2cBus_->write(DLPF_CONFIG, bandwidth);
+  if (result < 0)
+  {
+    std::cerr << "Error setting bandwidth" << std::endl;
+  }
   dlpf_range_ = DLPF_RANGES[static_cast<size_t>(bandwidth)];
 }
 
