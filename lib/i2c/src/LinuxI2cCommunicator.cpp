@@ -44,5 +44,5 @@ char LinuxI2cCommunicator::getFile() { return file_; }
 
 void LinuxI2cCommunicator::reportError(int error)
 {
-  std::cerr << "Error! Errno: " << strerror(error);
+  std::cerr << "Error! Errno: " << strerror(error) << std::endl;
 }
