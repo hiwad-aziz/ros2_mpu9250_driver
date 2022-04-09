@@ -85,7 +85,7 @@ void MPU9250Sensor::enableBypassMode()
   int result = i2cBus_->write(MPU9250_USER_CTRL, 0x00);
   if (result < 0)
   {
-    std::cerr << "Error disable i2c master interface" << std::endl;
+    std::cerr << "Error disabling i2c master interface" << std::endl;
   }
   
   // Enable bypass mode
